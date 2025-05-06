@@ -20,35 +20,36 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
 
-  <script type="module">
-    // Firebase SDKのモジュールをインポート
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<script type="module">
+  // Firebase SDKのモジュールをインポート
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getFirestore, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Firebase設定
-    const firebaseConfig = {
-      apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
-      authDomain: "chat-app-web-6d4fc.firebaseapp.com",
-      projectId: "chat-app-web-6d4fc",
-      storageBucket: "chat-app-web-6d4fc.firebasestorage.app",
-      messagingSenderId: "226877931746",
-      appId: "1:226877931746:web:a0497db65c18b5ddda5ebb",
-      measurementId: "G-PMX006ZKWS"
-    };
+  // Firebase設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
+    authDomain: "chat-app-web-6d4fc.firebaseapp.com",
+    projectId: "chat-app-web-6d4fc",
+    storageBucket: "chat-app-web-6d4fc.firebasestorage.app",
+    messagingSenderId: "226877931746",
+    appId: "1:226877931746:web:a0497db65c18b5ddda5ebb",
+    measurementId: "G-PMX006ZKWS"
+  };
 
-    // Firebaseの初期化
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  // Firebaseの初期化
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    // ユーザー名をセッションから取得
-    const username = sessionStorage.getItem("username");
+  // ユーザー名をセッションから取得
+  const username = sessionStorage.getItem("username");
 
-    // メッセージ送信
-    document.getElementById("send").onclick = async () => {
-      const messageInput = document.getElementById("message");
-      const msg = messageInput.value;
-      
-      if (msg) {
+  // メッセージ送信
+  document.getElementById("send").onclick = async () => {
+    const messageInput = document.getElementById("message");
+    const msg = messageInput.value;
+    
+    if (msg) {
+      try {
         // Firestoreにメッセージを追加
         await addDoc(collection(db, "messages"), {
           user: username,
@@ -57,23 +58,26 @@
         });
         
         messageInput.value = ""; // メッセージ入力欄をクリア
+      } catch (error) {
+        console.error("Error adding document: ", error);
       }
-    };
+    }
+  };
 
-    // Firestoreからメッセージをリアルタイムで取得して表示
-    const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
-    onSnapshot(messagesQuery, snapshot => {
-      const chatBox = document.getElementById("chat-box");
-      chatBox.innerHTML = ""; // 古いメッセージをクリア
+  // Firestoreからメッセージをリアルタイムで取得して表示
+  const messagesQuery = query(collection(db, "messages"), orderBy("timestamp"));
+  onSnapshot(messagesQuery, snapshot => {
+    const chatBox = document.getElementById("chat-box");
+    chatBox.innerHTML = ""; // 古いメッセージをクリア
 
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        chatBox.innerHTML += `<p><strong>${data.user}:</strong> ${data.message}</p>`;
-      });
-
-      // 常に一番下にスクロール
-      chatBox.scrollTop = chatBox.scrollHeight;
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      chatBox.innerHTML += `<p><strong>${data.user}:</strong> ${data.message}</p>`;
     });
-  </script>
+
+    // 常に一番下にスクロール
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+</script>
 </body>
 </html>
