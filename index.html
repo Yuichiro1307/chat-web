@@ -1,0 +1,38 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Clasroom-ログイン</title>
+  <style>
+    body { font-family: sans-serif; background: #f6f8fa; text-align: center; }
+    .login-box { background: white; padding: 2em; margin: 10% auto; width: 300px; border-radius: 8px; box-shadow: 0 0 10px #ccc; }
+    input { display: block; margin: 1em auto; padding: 0.5em; width: 90%; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h2>GitHub ログイン</h2>
+    <input type="text" id="username" placeholder="ユーザー名">
+    <input type="password" id="password" placeholder="パスワード">
+    <button onclick="login()">ログイン</button>
+    <p id="error" style="color: red;"></p>
+  </div>
+
+  <script>
+    const correctPassword = "46756478"; // recovery.txtの内容と一致
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      if (password === correctPassword) {
+        sessionStorage.setItem("username", username);
+        window.location.href = "chat.html";
+      } else {
+        document.getElementById('error').innerText = "パスワードが間違っています";
+      }
+    }
+  </script>
+</body>
+</html>
