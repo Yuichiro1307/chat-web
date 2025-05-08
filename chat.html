@@ -87,7 +87,7 @@
           timestamp: serverTimestamp()
         });
         messageInput.value = "";
-        remove(ref(rtdb, `typing-users/${username}`)); // 入力中リセット
+        remove(ref(rtdb, `typing-users/${username}`));
       }
     });
 
@@ -104,11 +104,12 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // オンライン管理
+    // オンライン状態管理（順序を修正）
     const onlineRef = ref(rtdb, "online-users");
     const userRef = ref(rtdb, `online-users/${username}`);
-    set(userRef, true);
-    onDisconnect(userRef).remove();
+
+    onDisconnect(userRef).remove();  // ✅ 先に onDisconnect を設定
+    set(userRef, true);              // ✅ その後にオンライン状態を保存
 
     onValue(onlineRef, (snapshot) => {
       const onlineUsers = snapshot.val();
@@ -116,33 +117,28 @@
       onlineUsersDisplay.textContent = `オンライン人数: ${onlineCount}`;
     });
 
-    // --- Typing（入力中）処理 ---
+    // Typing（入力中）処理
     const typingRef = ref(rtdb, `typing-users/${username}`);
     let typingTimeout = null;
 
     messageInput.addEventListener("input", () => {
       set(typingRef, true);
-
-      // 前のタイマーをクリアして再設定
       if (typingTimeout) clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
         remove(typingRef);
-      }, 3000); // 3秒間入力がなければ削除
+      }, 3000);
     });
 
-    // 他ユーザーの入力中ステータスを監視
     const typingUsersRef = ref(rtdb, "typing-users");
     onValue(typingUsersRef, (snapshot) => {
       const data = snapshot.val();
       let message = "";
-
       if (data) {
         const typingUsers = Object.keys(data).filter(user => user !== username);
         if (typingUsers.length > 0) {
           message = `${typingUsers.join("、")} が入力しています...`;
         }
       }
-
       typingIndicator.textContent = message;
     });
   </script>
