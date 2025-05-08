@@ -5,8 +5,15 @@
   <title>Classroom</title>
   <style>
     body { font-family: sans-serif; background: #eaeaea; }
-    #chat-box { height: 400px; overflow-y: scroll; background: white; padding: 1em; margin-bottom: 1em; }
-    #message { width: 80%; padding: 0.5em; }
+    #chat-box {
+      height: 400px;
+      overflow-y: scroll;
+      background: white;
+      padding: 1em;
+      margin-bottom: 1em;
+      border: 1px solid #ccc;
+    }
+    #message { width: 70%; padding: 0.5em; }
     #send { padding: 0.5em 1em; }
   </style>
 </head>
@@ -16,31 +23,54 @@
   <input type="text" id="message" placeholder="メッセージを入力">
   <button id="send">送信</button>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+  <!-- Firebase SDK（ES Modules形式） -->
   <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
-    authDomain: "chat-app-web-6d4fc.firebaseapp.com",
-    projectId: "chat-app-web-6d4fc",
-    storageBucket: "chat-app-web-6d4fc.firebasestorage.app",
-    messagingSenderId: "226877931746",
-    appId: "1:226877931746:web:90f82c36370980e3da5ebb",
-    measurementId: "G-6J73GJMXS9"
-  };
+    // Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
+      authDomain: "chat-app-web-6d4fc.firebaseapp.com",
+      projectId: "chat-app-web-6d4fc",
+      storageBucket: "chat-app-web-6d4fc.appspot.com",
+      messagingSenderId: "226877931746",
+      appId: "1:226877931746:web:90f82c36370980e3da5ebb",
+      measurementId: "G-6J73GJMXS9"
+    };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+    // Firebase初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const chatBox = document.getElementById("chat-box");
+    const messageInput = document.getElementById("message");
+    const sendButton = document.getElementById("send");
+
+    // メッセージ送信処理
+    sendButton.addEventListener("click", async () => {
+      const text = messageInput.value.trim();
+      if (text) {
+        await addDoc(collection(db, "messages"), {
+          text: text,
+          timestamp: serverTimestamp()
+        });
+        messageInput.value = "";
+      }
+    });
+
+    // メッセージ表示（リアルタイム更新）
+    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      chatBox.innerHTML = "";
+      snapshot.forEach((doc) => {
+        const msg = doc.data();
+        const div = document.createElement("div");
+        div.textContent = msg.text;
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight; // 一番下までスクロール
+    });
+  </script>
 </body>
 </html>
