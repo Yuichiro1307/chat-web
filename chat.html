@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Classroom</title>
+  <title>Classroom</title></title>
   <style>
     body { font-family: sans-serif; background: #eaeaea; }
     #chat-box {
@@ -47,12 +47,16 @@
     const messageInput = document.getElementById("message");
     const sendButton = document.getElementById("send");
 
+    // sessionStorageからユーザー名を取得
+    const username = sessionStorage.getItem("username") || "名無し";
+
     // メッセージ送信処理
     sendButton.addEventListener("click", async () => {
       const text = messageInput.value.trim();
       if (text) {
         await addDoc(collection(db, "messages"), {
           text: text,
+          user: username,
           timestamp: serverTimestamp()
         });
         messageInput.value = "";
@@ -66,10 +70,10 @@
       snapshot.forEach((doc) => {
         const msg = doc.data();
         const div = document.createElement("div");
-        div.textContent = msg.text;
+        div.textContent = `${msg.user || "名無し"}: ${msg.text}`;
         chatBox.appendChild(div);
       });
-      chatBox.scrollTop = chatBox.scrollHeight; // 一番下までスクロール
+      chatBox.scrollTop = chatBox.scrollHeight;
     });
   </script>
 </body>
