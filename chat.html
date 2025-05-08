@@ -12,6 +12,12 @@
       padding: 1em;
       margin-bottom: 1em;
       border: 1px solid #ccc;
+      position: relative;
+    }
+    #typing-indicator {
+      color: #888;
+      font-style: italic;
+      margin-top: 0.5em;
     }
     #message { width: 70%; padding: 0.5em; }
     #send { padding: 0.5em 1em; }
@@ -30,19 +36,19 @@
 <body>
   <h2>チャットルーム</h2>
   <div id="chat-box"></div>
+  <div id="typing-indicator"></div>
   <input type="text" id="message" placeholder="メッセージを入力">
   <button id="send">送信</button>
 
   <!-- オンライン人数表示 -->
   <div id="online-users">オンライン人数: 0</div>
 
-  <!-- Firebase SDK（ES Modules形式） -->
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
-    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-database.js";
 
-    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
       authDomain: "chat-app-web-6d4fc.firebaseapp.com",
@@ -53,7 +59,6 @@
       measurementId: "G-6J73GJMXS9"
     };
 
-    // Firebase初期化
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const rtdb = getDatabase(app);
@@ -62,14 +67,17 @@
     const messageInput = document.getElementById("message");
     const sendButton = document.getElementById("send");
     const onlineUsersDisplay = document.getElementById("online-users");
+    const typingIndicator = document.getElementById("typing-indicator");
 
-    // sessionStorageからユーザー名を取得
-    const username = sessionStorage.getItem("username") || "名無し";
+    // guest#### を生成・保持
+    if (!sessionStorage.getItem("username")) {
+      const randomNumber = Math.floor(1000 + Math.random() * 9000);
+      const randomUsername = `guest${randomNumber}`;
+      sessionStorage.setItem("username", randomUsername);
+    }
+    const username = sessionStorage.getItem("username");
 
-    // ユーザーのオンライン情報の保存場所
-    const onlineRef = ref(rtdb, "online-users");
-
-    // メッセージ送信処理
+    // メッセージ送信
     sendButton.addEventListener("click", async () => {
       const text = messageInput.value.trim();
       if (text) {
@@ -79,10 +87,11 @@
           timestamp: serverTimestamp()
         });
         messageInput.value = "";
+        remove(ref(rtdb, `typing-users/${username}`)); // 入力中リセット
       }
     });
 
-    // メッセージ表示（リアルタイム更新）
+    // メッセージ表示
     const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       chatBox.innerHTML = "";
@@ -95,20 +104,46 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // オンライン状態管理（ユーザーが参加したらリストに追加、退出したらリストから削除）
+    // オンライン管理
+    const onlineRef = ref(rtdb, "online-users");
     const userRef = ref(rtdb, `online-users/${username}`);
-    set(userRef, true); // ユーザーがオンラインであることを保存
+    set(userRef, true);
+    onDisconnect(userRef).remove();
 
-    // ユーザーがページを離れたときにオンラインリストから削除
-    window.addEventListener("beforeunload", () => {
-      remove(userRef);
-    });
-
-    // オンラインユーザー数をリアルタイムで表示
     onValue(onlineRef, (snapshot) => {
       const onlineUsers = snapshot.val();
       const onlineCount = onlineUsers ? Object.keys(onlineUsers).length : 0;
       onlineUsersDisplay.textContent = `オンライン人数: ${onlineCount}`;
+    });
+
+    // --- Typing（入力中）処理 ---
+    const typingRef = ref(rtdb, `typing-users/${username}`);
+    let typingTimeout = null;
+
+    messageInput.addEventListener("input", () => {
+      set(typingRef, true);
+
+      // 前のタイマーをクリアして再設定
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        remove(typingRef);
+      }, 3000); // 3秒間入力がなければ削除
+    });
+
+    // 他ユーザーの入力中ステータスを監視
+    const typingUsersRef = ref(rtdb, "typing-users");
+    onValue(typingUsersRef, (snapshot) => {
+      const data = snapshot.val();
+      let message = "";
+
+      if (data) {
+        const typingUsers = Object.keys(data).filter(user => user !== username);
+        if (typingUsers.length > 0) {
+          message = `${typingUsers.join("、")} が入力しています...`;
+        }
+      }
+
+      typingIndicator.textContent = message;
     });
   </script>
 </body>
