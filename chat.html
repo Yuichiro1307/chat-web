@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Classroom</title></title>
+  <title>チャットルーム</title>
   <style>
     body { font-family: sans-serif; background: #eaeaea; }
     #chat-box {
@@ -15,37 +15,101 @@
     }
     #message { width: 70%; padding: 0.5em; }
     #send { padding: 0.5em 1em; }
+    #online-users {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body>
-  <h2>チャットルームVer2.0</h2>
+  <h2>チャットルーム</h2>
   <div id="chat-box"></div>
   <input type="text" id="message" placeholder="メッセージを入力">
   <button id="send">送信</button>
 
+  <!-- オンライン人数表示 -->
+  <div id="online-users">オンライン人数: 0</div>
+
   <!-- Firebase SDK（ES Modules形式） -->
- <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-database.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDH1_nEhNg8m2Qyg4g1rPGgk9ei0zrmFNg",
-    authDomain: "webapi-a19ab.firebaseapp.com",
-    projectId: "webapi-a19ab",
-    storageBucket: "webapi-a19ab.firebasestorage.app",
-    messagingSenderId: "112551648245",
-    appId: "1:112551648245:web:6ab6ceb970064a92e65ebc",
-    measurementId: "G-90EX1H3EV0"
-  };
+    // Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
+      authDomain: "chat-app-web-6d4fc.firebaseapp.com",
+      projectId: "chat-app-web-6d4fc",
+      storageBucket: "chat-app-web-6d4fc.appspot.com",
+      messagingSenderId: "226877931746",
+      appId: "1:226877931746:web:90f82c36370980e3da5ebb",
+      measurementId: "G-6J73GJMXS9"
+    };
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+    // Firebase初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+
+    const chatBox = document.getElementById("chat-box");
+    const messageInput = document.getElementById("message");
+    const sendButton = document.getElementById("send");
+    const onlineUsersDisplay = document.getElementById("online-users");
+
+    // sessionStorageからユーザー名を取得
+    const username = sessionStorage.getItem("username") || "名無し";
+
+    // ユーザーのオンライン情報の保存場所
+    const onlineRef = ref(rtdb, "online-users");
+
+    // メッセージ送信処理
+    sendButton.addEventListener("click", async () => {
+      const text = messageInput.value.trim();
+      if (text) {
+        await addDoc(collection(db, "messages"), {
+          text: text,
+          user: username,
+          timestamp: serverTimestamp()
+        });
+        messageInput.value = "";
+      }
+    });
+
+    // メッセージ表示（リアルタイム更新）
+    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+    onSnapshot(q, (snapshot) => {
+      chatBox.innerHTML = "";
+      snapshot.forEach((doc) => {
+        const msg = doc.data();
+        const div = document.createElement("div");
+        div.textContent = `${msg.user || "名無し"}: ${msg.text}`;
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    // オンライン状態管理（ユーザーが参加したらリストに追加、退出したらリストから削除）
+    const userRef = ref(rtdb, `online-users/${username}`);
+    set(userRef, true); // ユーザーがオンラインであることを保存
+
+    // ユーザーがページを離れたときにオンラインリストから削除
+    window.addEventListener("beforeunload", () => {
+      remove(userRef);
+    });
+
+    // オンラインユーザー数をリアルタイムで表示
+    onValue(onlineRef, (snapshot) => {
+      const onlineUsers = snapshot.val();
+      const onlineCount = onlineUsers ? Object.keys(onlineUsers).length : 0;
+      onlineUsersDisplay.textContent = `オンライン人数: ${onlineCount}`;
+    });
+  </script>
 </body>
 </html>
