@@ -18,63 +18,34 @@
   </style>
 </head>
 <body>
-  <h2>チャットルーム</h2>
+  <h2>チャットルームVer2.0</h2>
   <div id="chat-box"></div>
   <input type="text" id="message" placeholder="メッセージを入力">
   <button id="send">送信</button>
 
   <!-- Firebase SDK（ES Modules形式） -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+ <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
-    // Firebase 設定
-    const firebaseConfig = {
-      apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
-      authDomain: "chat-app-web-6d4fc.firebaseapp.com",
-      projectId: "chat-app-web-6d4fc",
-      storageBucket: "chat-app-web-6d4fc.appspot.com",
-      messagingSenderId: "226877931746",
-      appId: "1:226877931746:web:90f82c36370980e3da5ebb",
-      measurementId: "G-6J73GJMXS9"
-    };
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDH1_nEhNg8m2Qyg4g1rPGgk9ei0zrmFNg",
+    authDomain: "webapi-a19ab.firebaseapp.com",
+    projectId: "webapi-a19ab",
+    storageBucket: "webapi-a19ab.firebasestorage.app",
+    messagingSenderId: "112551648245",
+    appId: "1:112551648245:web:6ab6ceb970064a92e65ebc",
+    measurementId: "G-90EX1H3EV0"
+  };
 
-    // Firebase初期化
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const chatBox = document.getElementById("chat-box");
-    const messageInput = document.getElementById("message");
-    const sendButton = document.getElementById("send");
-
-    // sessionStorageからユーザー名を取得
-    const username = sessionStorage.getItem("username") || "名無し";
-
-    // メッセージ送信処理
-    sendButton.addEventListener("click", async () => {
-      const text = messageInput.value.trim();
-      if (text) {
-        await addDoc(collection(db, "messages"), {
-          text: text,
-          user: username,
-          timestamp: serverTimestamp()
-        });
-        messageInput.value = "";
-      }
-    });
-
-    // メッセージ表示（リアルタイム更新）
-    const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
-    onSnapshot(q, (snapshot) => {
-      chatBox.innerHTML = "";
-      snapshot.forEach((doc) => {
-        const msg = doc.data();
-        const div = document.createElement("div");
-        div.textContent = `${msg.user || "名無し"}: ${msg.text}`;
-        chatBox.appendChild(div);
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
-  </script>
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
 </body>
 </html>
