@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -31,12 +32,6 @@
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
-    img.chat-image {
-      max-width: 200px;
-      max-height: 200px;
-      display: block;
-      margin-top: 5px;
-    }
   </style>
 </head>
 <body>
@@ -44,7 +39,6 @@
   <div id="chat-box"></div>
   <div id="typing-indicator"></div>
   <input type="text" id="message" placeholder="メッセージを入力">
-  <input type="file" id="fileInput" accept="image/*" multiple>
   <button id="send">送信</button>
 
   <!-- オンライン人数表示 -->
@@ -55,7 +49,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
     import { getDatabase, ref, set, onValue, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-database.js";
-    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCt-kBplOktF-fXODzY61n2N2hb_Hkgm6A",
@@ -70,11 +63,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const rtdb = getDatabase(app);
-    const storage = getStorage(app);
 
     const chatBox = document.getElementById("chat-box");
     const messageInput = document.getElementById("message");
-    const fileInput = document.getElementById("fileInput");
     const sendButton = document.getElementById("send");
     const onlineUsersDisplay = document.getElementById("online-users");
     const typingIndicator = document.getElementById("typing-indicator");
@@ -88,23 +79,6 @@
 
     sendButton.addEventListener("click", async () => {
       const text = messageInput.value.trim();
-      const files = fileInput.files;
-
-      if (files.length > 0) {
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const fileRef = storageRef(storage, `uploads/${Date.now()}_${file.name}`);
-          await uploadBytes(fileRef, file);
-          const url = await getDownloadURL(fileRef);
-
-          await addDoc(collection(db, "messages"), {
-            text: `<img src="${url}" class="chat-image">`,
-            user: username,
-            timestamp: serverTimestamp()
-          });
-        }
-        fileInput.value = ""; // Reset file input
-      }
 
       if (text) {
         await addDoc(collection(db, "messages"), {
@@ -115,6 +89,7 @@
         messageInput.value = "";
       }
 
+      // タイピングユーザー情報を削除
       remove(ref(rtdb, `typing-users/${username}`));
     });
 
