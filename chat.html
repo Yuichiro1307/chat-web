@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -40,11 +39,8 @@
   <div id="typing-indicator"></div>
   <input type="text" id="message" placeholder="メッセージを入力">
   <button id="send">送信</button>
-
-  <!-- オンライン人数表示 -->
   <div id="online-users">オンライン人数: 0</div>
 
-  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
@@ -67,9 +63,10 @@
     const chatBox = document.getElementById("chat-box");
     const messageInput = document.getElementById("message");
     const sendButton = document.getElementById("send");
-    const onlineUsersDisplay = document.getElementById("online-users");
     const typingIndicator = document.getElementById("typing-indicator");
+    const onlineUsersDisplay = document.getElementById("online-users");
 
+    // ユーザー名の生成・保持
     if (!sessionStorage.getItem("username")) {
       const randomNumber = Math.floor(1000 + Math.random() * 9000);
       const randomUsername = `guest${randomNumber}`;
@@ -77,22 +74,22 @@
     }
     const username = sessionStorage.getItem("username");
 
+    // Firestore: チャットメッセージ送信
     sendButton.addEventListener("click", async () => {
       const text = messageInput.value.trim();
-
       if (text) {
         await addDoc(collection(db, "messages"), {
-          text: text,
+          text,
           user: username,
           timestamp: serverTimestamp()
         });
         messageInput.value = "";
       }
-
-      // タイピングユーザー情報を削除
+      // 入力終了
       remove(ref(rtdb, `typing-users/${username}`));
     });
 
+    // Firestore: メッセージ表示
     const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       chatBox.innerHTML = "";
@@ -105,39 +102,46 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
+    // Realtime DB: オンラインユーザー登録
     const onlineRef = ref(rtdb, "online-users");
     const userRef = ref(rtdb, `online-users/${username}`);
     onDisconnect(userRef).remove();
-    set(userRef, true);
+    set(userRef, true); // オンライン登録
 
+    // オンラインユーザー数表示
     onValue(onlineRef, (snapshot) => {
-      const onlineUsers = snapshot.val();
-      const onlineCount = onlineUsers ? Object.keys(onlineUsers).length : 0;
-      onlineUsersDisplay.textContent = `オンライン人数: ${onlineCount}`;
+      const users = snapshot.val();
+      const count = users ? Object.keys(users).length : 0;
+      onlineUsersDisplay.textContent = `オンライン人数: ${count}`;
     });
 
+    // Realtime DB: タイピング検出
     const typingRef = ref(rtdb, `typing-users/${username}`);
     let typingTimeout = null;
 
     messageInput.addEventListener("input", () => {
-      set(typingRef, true);
+      set(typingRef, true); // 自分が入力中と登録
       if (typingTimeout) clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
         remove(typingRef);
-      }, 3000);
+      }, 3000); // 3秒無入力で解除
     });
 
+    // 他ユーザーのタイピング監視
     const typingUsersRef = ref(rtdb, "typing-users");
     onValue(typingUsersRef, (snapshot) => {
       const data = snapshot.val();
-      let message = "";
-      if (data) {
-        const typingUsers = Object.keys(data).filter(user => user !== username);
-        if (typingUsers.length > 0) {
-          message = `${typingUsers.join("、")} が入力しています...`;
-        }
+      if (!data) {
+        typingIndicator.textContent = "";
+        return;
       }
-      typingIndicator.textContent = message;
+
+      const othersTyping = Object.keys(data).filter(user => user !== username);
+      if (othersTyping.length > 0) {
+        typingIndicator.textContent = `${othersTyping.join("、")} が入力しています...`;
+      } else {
+        typingIndicator.textContent = "";
+      }
     });
   </script>
 </body>
