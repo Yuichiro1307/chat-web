@@ -4,43 +4,59 @@
   <meta charset="UTF-8">
   <title>Classroom</title>
   <style>
-    body { font-family: sans-serif; background: #eaeaea; }
+    body { font-family: sans-serif; background: #eaeaea; margin: 0; padding: 0; }
     #chat-box {
       height: 400px;
       overflow-y: scroll;
       background: white;
       padding: 1em;
-      margin-bottom: 1em;
+      margin: 1em;
       border: 1px solid #ccc;
-      position: relative;
     }
     #typing-indicator {
       color: #888;
       font-style: italic;
-      margin-top: 0.5em;
+      margin-left: 1em;
     }
-    #message { width: 70%; padding: 0.5em; }
+    #message { width: 70%; padding: 0.5em; margin-left: 1em; }
     #send { padding: 0.5em 1em; }
-    #online-users {
-      position: absolute;
-      top: 10px;
+    #online-users, #user-list {
+      position: fixed;
       right: 10px;
       background: #fff;
       padding: 10px;
       border: 1px solid #ccc;
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      z-index: 999;
+    }
+    #online-users {
+      top: 10px;
+    }
+    #user-list {
+      top: 50%;
+      transform: translateY(-50%);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .system-message {
+      color: gray;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
-  <h2>チャットルーム</h2>
+  <h2 style="margin-left: 1em;">チャットルーム</h2>
   <div id="chat-box"></div>
   <div id="typing-indicator"></div>
   <input type="text" id="message" placeholder="メッセージを入力">
   <button id="send">送信</button>
-  <div id="online-users">オンライン人数: 0</div>
 
+  <!-- オンライン人数とユーザーリスト -->
+  <div id="online-users">オンライン人数: 0</div>
+  <div id="user-list"><strong>ユーザー一覧:</strong><ul id="user-names"></ul></div>
+
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
@@ -52,8 +68,7 @@
       projectId: "chat-app-web-6d4fc",
       storageBucket: "chat-app-web-6d4fc.appspot.com",
       messagingSenderId: "226877931746",
-      appId: "1:226877931746:web:90f82c36370980e3da5ebb",
-      measurementId: "G-6J73GJMXS9"
+      appId: "1:226877931746:web:90f82c36370980e3da5ebb"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -65,8 +80,8 @@
     const sendButton = document.getElementById("send");
     const typingIndicator = document.getElementById("typing-indicator");
     const onlineUsersDisplay = document.getElementById("online-users");
+    const userList = document.getElementById("user-names");
 
-    // ユーザー名の生成・保持
     if (!sessionStorage.getItem("username")) {
       const randomNumber = Math.floor(1000 + Math.random() * 9000);
       const randomUsername = `guest${randomNumber}`;
@@ -74,7 +89,7 @@
     }
     const username = sessionStorage.getItem("username");
 
-    // Firestore: チャットメッセージ送信
+    // 🔹 メッセージ送信
     sendButton.addEventListener("click", async () => {
       const text = messageInput.value.trim();
       if (text) {
@@ -85,49 +100,57 @@
         });
         messageInput.value = "";
       }
-      // 入力終了
       remove(ref(rtdb, `typing-users/${username}`));
     });
 
-    // Firestore: メッセージ表示
+    // 🔹 チャット履歴表示
     const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
     onSnapshot(q, (snapshot) => {
       chatBox.innerHTML = "";
       snapshot.forEach((doc) => {
         const msg = doc.data();
         const div = document.createElement("div");
-        div.innerHTML = `<strong>${msg.user || "名無し"}</strong>: ${msg.text}`;
+        if (msg.user === "system") {
+          div.innerHTML = `<div class="system-message">※ ${msg.text}</div>`;
+        } else {
+          div.innerHTML = `<strong>${msg.user || "名無し"}</strong>: ${msg.text}`;
+        }
         chatBox.appendChild(div);
       });
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // Realtime DB: オンラインユーザー登録
+    // 🔹 オンライン管理
     const onlineRef = ref(rtdb, "online-users");
     const userRef = ref(rtdb, `online-users/${username}`);
     onDisconnect(userRef).remove();
-    set(userRef, true); // オンライン登録
+    set(userRef, username); // ここで名前も保存
 
-    // オンラインユーザー数表示
-    onValue(onlineRef, (snapshot) => {
-      const users = snapshot.val();
-      const count = users ? Object.keys(users).length : 0;
-      onlineUsersDisplay.textContent = `オンライン人数: ${count}`;
+    // 🔹 入室通知（Firestore に1回だけ送る）
+    await addDoc(collection(db, "messages"), {
+      text: `${username} が入室しました`,
+      user: "system",
+      timestamp: serverTimestamp()
     });
 
-    // Realtime DB: タイピング検出
+    // 🔹 オンライン人数 & ユーザーリスト
+    onValue(onlineRef, (snapshot) => {
+      const users = snapshot.val() || {};
+      const names = Object.values(users);
+      onlineUsersDisplay.textContent = `オンライン人数: ${names.length}`;
+      userList.innerHTML = names.map(name => `<li>${name}</li>`).join("");
+    });
+
+    // 🔹 タイピング表示
     const typingRef = ref(rtdb, `typing-users/${username}`);
     let typingTimeout = null;
-
     messageInput.addEventListener("input", () => {
-      set(typingRef, true); // 自分が入力中と登録
+      set(typingRef, true);
       if (typingTimeout) clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        remove(typingRef);
-      }, 3000); // 3秒無入力で解除
+      typingTimeout = setTimeout(() => remove(typingRef), 3000);
     });
 
-    // 他ユーザーのタイピング監視
+    // 🔹 他ユーザーのタイピング監視
     const typingUsersRef = ref(rtdb, "typing-users");
     onValue(typingUsersRef, (snapshot) => {
       const data = snapshot.val();
@@ -135,13 +158,19 @@
         typingIndicator.textContent = "";
         return;
       }
-
       const othersTyping = Object.keys(data).filter(user => user !== username);
-      if (othersTyping.length > 0) {
-        typingIndicator.textContent = `${othersTyping.join("、")} が入力しています...`;
-      } else {
-        typingIndicator.textContent = "";
-      }
+      typingIndicator.textContent = othersTyping.length > 0
+        ? `${othersTyping.join("、")} が入力しています...` : "";
+    });
+
+    // 🔹 ページ離脱時：退出メッセージ送信（beforeunload は非同期できないので setTimeout）
+    window.addEventListener("beforeunload", async () => {
+      const exitMsg = {
+        text: `${username} が退出しました`,
+        user: "system",
+        timestamp: serverTimestamp()
+      };
+      navigator.sendBeacon("/firestore-exit", JSON.stringify(exitMsg)); // ←通常のHTTP送信で対応も可能
     });
   </script>
 </body>
